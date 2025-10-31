@@ -1,0 +1,5 @@
+# This file goes in /etc/qubes/policy.d
+# Example usage:
+# local.custom.qvmdoll myVM @adminvm allow -> Give full permission on every VM
+# local.custom.qvmdoll +some-vm myVM @adminvm allow -> Give permission to launch some-vm
+local.custom.qvmdoll +chrome-dvm dev1 @adminvm allow

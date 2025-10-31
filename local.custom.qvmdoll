@@ -1,0 +1,56 @@
+#!/bin/bash
+set -eu
+tmpl=${QREXEC_SERVICE_ARGUMENT:-}
+source_vm=${QREXEC_REMOTE_DOMAIN:-unknown}
+
+[[ $tmpl =~ ^[A-Za-z0-9._-]+$ ]] || {
+  echo "ERROR: invalid template name"
+  exit 1
+}
+
+if ! qvm-check --quiet "$tmpl" 2>/dev/null; then
+  echo "ERROR: VM '$tmpl' does not exist"
+  exit 1
+fi
+
+is_dispvm_template=$(qvm-prefs "$tmpl" template_for_dispvms 2>/dev/null || echo "False")
+vm_class=$(qvm-prefs "$tmpl" klass 2>/dev/null || echo "")
+
+if [ "$is_dispvm_template" = "True" ]; then
+  pipe="/tmp/dispvm-pipe-$$"
+  mkfifo "$pipe"
+  
+  qvm-run --dispvm="$tmpl" --pass-io 'hostname; exec sleep infinity' > "$pipe" 2>&1 &
+  qvm_pid=$!
+  
+  dispvm=$(timeout 10 head -1 "$pipe" 2>/dev/null | tr -d '[:space:]')
+  rm -f "$pipe"
+  
+  if [ -z "$dispvm" ]; then
+    echo "ERROR: Failed to get disposable VM name"
+    kill $qvm_pid 2>/dev/null || true
+    exit 1
+  fi
+  
+  policy_file="/etc/qubes/policy.d/35-script-vmstart-auto-tcp-$dispvm.policy"
+  echo "qubes.ConnectTCP * $source_vm $dispvm allow" > "$policy_file"
+  echo "$dispvm"
+  
+  # Automatic cleanup when VM shuts down; Note: if the dom0 crash unexpectedly this won't run.
+  nohup bash -c "
+    while qvm-check --running '$dispvm' 2>/dev/null; do
+      sleep 5
+    done
+    rm -f '$policy_file'
+    kill $qvm_pid 2>/dev/null || true
+  " >/dev/null 2>&1 &
+  
+  disown
+
+elif [ "$vm_class" = "TemplateVM" ]; then
+  echo "ERROR: TemplateVM '$tmpl' is not configured for disposables"
+  exit 1
+else
+  qvm-start "$tmpl" 2>/dev/null || true
+  echo "$tmpl"
+fi
