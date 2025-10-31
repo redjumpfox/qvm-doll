@@ -33,7 +33,7 @@ if [ "$is_dispvm_template" = "True" ]; then
     exit 1
   fi
   
-  policy_file="/etc/qubes/policy.d/35-script-vmstart-auto-tcp-$dispvm.policy"
+  policy_file="/etc/qubes/policy.d/35-script-qvmdoll-$dispvm.policy"
   echo "qubes.ConnectTCP * $source_vm $dispvm allow" > "$policy_file"
   echo "$dispvm"
   
