@@ -1,4 +1,5 @@
 #!/bin/bash
+# This script goes in /etc/qubes-rpc/
 set -eu
 tmpl=${QREXEC_SERVICE_ARGUMENT:-}
 source_vm=${QREXEC_REMOTE_DOMAIN:-unknown}
